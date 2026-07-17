@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Сон">
+<meta name="theme-color" content="#12162A">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%2312162A'/%3E%3Ctext x='90' y='118' font-size='90' text-anchor='middle'%3E🌙%3C/text%3E%3C/svg%3E">
+<title>Сон — калькулятор и трекер</title>
+<style>
+  :root{
+    --night:#12162A;
+    --card:#1B2140;
+    --card-hi:#232B52;
+    --line:#2E3768;
+    --ink:#EDEBF5;
+    --dim:#8E93B8;
+    --moon:#F2C46D;
+    --good:#7ED9A0;
+    --ok:#F2C46D;
+    --bad:#F08A7E;
+    --radius:18px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{font-size:16px}
+  body{
+    font-family:-apple-system,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    background:var(--night);
+    color:var(--ink);
+    min-height:100vh;
+    padding:20px 16px calc(86px + env(safe-area-inset-bottom));
+    background-image:radial-gradient(ellipse 80% 50% at 50% -10%, #232B5266 0%, transparent 70%);
+  }
+  .wrap{max-width:440px;margin:0 auto}
+  button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+  header{text-align:center;margin-bottom:18px}
+  .moon{font-size:2rem;display:block;margin-bottom:4px;filter:drop-shadow(0 0 14px #F2C46D55)}
+  h1{font-size:1.3rem;font-weight:700}
+  .sub{color:var(--dim);font-size:.82rem;margin-top:3px}
+
+  .page{display:none}
+  .page.on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+  @media (prefers-reduced-motion:reduce){.page.on,.row{animation:none}}
+
+  /* нижние вкладки */
+  .tabs{
+    position:fixed;left:0;right:0;bottom:0;z-index:15;
+    background:#161B36F2;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    display:flex;padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  .tabs button{
+    flex:1;border:0;background:transparent;color:var(--dim);
+    font-size:.7rem;font-weight:600;padding:6px 2px;border-radius:12px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+  }
+  .tabs button span{font-size:1.3rem}
+  .tabs button.on{color:var(--moon)}
+
+  /* переключатель режимов калькулятора */
+  .mode{display:flex;background:var(--card);border-radius:14px;padding:4px;margin-bottom:16px}
+  .mode button{
+    flex:1;border:0;background:transparent;color:var(--dim);
+    font-size:.88rem;font-weight:600;padding:11px 6px;border-radius:11px;
+    transition:background .2s,color .2s;
+  }
+  .mode button.on{background:var(--card-hi);color:var(--ink);box-shadow:0 2px 8px #0006}
+
+  .timebox{
+    background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:14px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+  }
+  .timebox label{color:var(--dim);font-size:.85rem;line-height:1.35;flex:1}
+  input[type=time],input[type=date]{
+    font:inherit;font-size:1.4rem;font-weight:700;font-variant-numeric:tabular-nums;
+    background:var(--night);color:var(--moon);border:1px solid var(--line);border-radius:12px;
+    padding:8px 12px;outline:none;color-scheme:dark;
+  }
+  input:focus{border-color:var(--moon)}
+
+  .fall{color:var(--dim);font-size:.78rem;text-align:center;margin-bottom:14px}
+
+  .results{display:flex;flex-direction:column;gap:10px}
+  .row{
+    background:var(--card);border-radius:var(--radius);padding:13px 15px;
+    display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:center;
+    border-left:4px solid var(--dim);animation:pop .3s ease backwards;
+  }
+  .row:nth-child(1){animation-delay:.02s}.row:nth-child(2){animation-delay:.06s}
+  .row:nth-child(3){animation-delay:.1s}.row:nth-child(4){animation-delay:.14s}
+  .row:nth-child(5){animation-delay:.18s}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}}
+  .row.good{border-left-color:var(--good)}
+  .row.ok{border-left-color:var(--ok)}
+  .row.bad{border-left-color:var(--bad)}
+  .row.best{background:var(--card-hi);box-shadow:0 4px 18px #0007}
+  .row.pick{cursor:pointer}
+  .row.armed{outline:2px solid var(--moon)}
+  .t{grid-row:span 2;font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .row.good .t{color:var(--good)}.row.ok .t{color:var(--ok)}.row.bad .t{color:var(--bad)}
+  .meta{font-size:.85rem;font-weight:600}
+  .note{grid-column:2/4;color:var(--dim);font-size:.77rem;line-height:1.35}
+  .cycles{display:flex;gap:3px;justify-self:end}
+  .cycles i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+  .row.good .cycles{color:var(--good)}.row.ok .cycles{color:var(--ok)}.row.bad .cycles{color:var(--bad)}
+  .badge{
+    grid-column:2/4;justify-self:start;margin-top:2px;
+    font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--night);background:var(--moon);border-radius:99px;padding:3px 9px;
+  }
+
+  .hint{color:var(--dim);font-size:.76rem;line-height:1.5;text-align:center;margin-top:18px;padding:0 6px}
+
+  .alarm-set{
+    width:100%;border:0;font-weight:700;font-size:.95rem;
+    background:var(--moon);color:var(--night);border-radius:14px;padding:14px;margin-bottom:14px;
+  }
+  .alarm-set:active{transform:scale(.98)}
+  .tap-hint{color:var(--dim);font-size:.75rem;text-align:center;margin:-4px 0 12px}
+
+  .alarm-bar{
+    position:fixed;left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));
+    max-width:416px;margin:0 auto;background:var(--card-hi);border:1px solid var(--line);
+    border-radius:16px;padding:11px 14px;display:none;align-items:center;gap:12px;
+    box-shadow:0 8px 30px #000A;z-index:14;
+  }
+  .alarm-bar.on{display:flex}
+  .alarm-bar .info{flex:1;line-height:1.3;font-size:.9rem}
+  .alarm-bar .info b{font-variant-numeric:tabular-nums}
+  .alarm-bar .info small{display:block;color:var(--dim);font-size:.72rem}
+  .alarm-bar button{border:0;background:var(--bad);color:var(--night);font-weight:700;font-size:.8rem;border-radius:10px;padding:8px 12px}
+
+  .ring{position:fixed;inset:0;background:var(--night);z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+  .ring.on{display:flex;animation:flash 1s ease-in-out infinite}
+  @keyframes flash{0%,100%{background:#12162A}50%{background:#3A2E14}}
+  .ring .big{font-size:4rem}
+  .ring .rt{font-size:3rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--moon)}
+  .ring .stop{border:0;font-weight:800;font-size:1.05rem;background:var(--good);color:var(--night);border-radius:16px;padding:17px 42px;margin-top:8px}
+
+  /* ---- трекер ---- */
+  .bigbtn{
+    width:100%;border:0;border-radius:20px;padding:22px;font-size:1.15rem;font-weight:800;
+    margin-bottom:16px;
+  }
+  .bigbtn.sleep{background:linear-gradient(135deg,#2E3768,#232B52);color:var(--ink);border:1px solid var(--line)}
+  .bigbtn.wakeup{background:var(--moon);color:var(--night)}
+  .bigbtn:active{transform:scale(.98)}
+  .sleeping-since{color:var(--dim);font-size:.85rem;text-align:center;margin:-8px 0 14px}
+
+  .qbox{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;display:none}
+  .qbox.on{display:block}
+  .qbox p{font-size:.9rem;margin-bottom:12px}
+  .qbox .qs{display:flex;gap:10px;justify-content:center}
+  .qbox .qs button{border:1px solid var(--line);background:var(--night);border-radius:14px;font-size:1.8rem;padding:10px 18px}
+  .qbox .qs button:active{background:var(--card-hi)}
+
+  .section-title{font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim);margin:20px 0 10px}
+  .addbtn{width:100%;border:1px dashed var(--line);background:transparent;color:var(--dim);border-radius:14px;padding:12px;font-size:.85rem;font-weight:600;margin-bottom:4px}
+
+  .addform{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:14px;display:none}
+  .addform.on{display:block}
+  .addform .fr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .addform .fr label{color:var(--dim);font-size:.83rem}
+  .addform input{font-size:1.05rem;padding:7px 10px}
+  .addform .fbtns{display:flex;gap:10px}
+  .addform .fbtns button{flex:1;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:.88rem}
+  .addform .save{background:var(--good);color:var(--night)}
+  .addform .cancel{background:var(--card-hi);color:var(--dim)}
+
+  .entry{
+    background:var(--card);border-radius:var(--radius);padding:13px 15px;margin-bottom:9px;
+    display:grid;grid-template-columns:auto 1fr auto auto;gap:2px 12px;align-items:center;
+    border-left:4px solid var(--dim);
+  }
+  .entry.good{border-left-color:var(--good)}
+  .entry.ok{border-left-color:var(--ok)}
+  .entry.bad{border-left-color:var(--bad)}
+  .entry .q{grid-row:span 2;font-size:1.5rem}
+  .entry .d{font-size:.78rem;color:var(--dim)}
+  .entry .times{font-size:.95rem;font-weight:600;font-variant-numeric:tabular-nums}
+  .entry .dur{grid-row:span 2;font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+  .entry.good .dur{color:var(--good)}.entry.ok .dur{color:var(--ok)}.entry.bad .dur{color:var(--bad)}
+  .entry .del{grid-row:span 2;border:0;background:transparent;color:var(--dim);font-size:1.1rem;padding:6px}
+  .empty{color:var(--dim);font-size:.85rem;text-align:center;padding:24px 10px;line-height:1.5}
+
+  /* ---- статистика ---- */
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+  .stat{background:var(--card);border-radius:var(--radius);padding:14px}
+  .stat .v{font-size:1.45rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .stat .l{color:var(--dim);font-size:.74rem;margin-top:3px;line-height:1.3}
+  .stat .v.good{color:var(--good)}.stat .v.ok{color:var(--ok)}.stat .v.bad{color:var(--bad)}.stat .v.moon{color:var(--moon)}
+
+  .chart-card{background:var(--card);border-radius:var(--radius);padding:16px 14px 10px;margin-bottom:16px}
+  .chart-card h3{font-size:.85rem;font-weight:700;margin-bottom:14px;color:var(--dim)}
+  .chart{display:flex;align-items:flex-end;gap:7px;height:130px;position:relative}
+  .goal-line{position:absolute;left:0;right:0;border-top:1.5px dashed #F2C46D77;z-index:1}
+  .goal-line small{position:absolute;right:0;top:-15px;color:var(--moon);font-size:.62rem}
+  .bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;height:100%}
+  .bar .col{width:100%;max-width:34px;border-radius:7px 7px 3px 3px;background:var(--dim);min-height:3px}
+  .bar.good .col{background:var(--good)}
+  .bar.ok .col{background:var(--ok)}
+  .bar.bad .col{background:var(--bad)}
+  .bar .bl{font-size:.62rem;color:var(--dim)}
+  .bar .bv{font-size:.62rem;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+  .goalbox{background:var(--card);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+  .goalbox label{color:var(--dim);font-size:.85rem}
+  .goalbox select{
+    font:inherit;font-size:1rem;font-weight:700;background:var(--night);color:var(--moon);
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;outline:none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="moon">🌙</span>
+    <h1 id="pageTitle">Калькулятор сна</h1>
+    <div class="sub" id="pageSub">циклы по 90 минут · +15 мин на засыпание</div>
+  </header>
+
+  <!-- ===== КАЛЬКУЛЯТОР ===== -->
+  <div class="page on" id="pageCalc">
+    <div class="mode">
+      <button id="mWake" class="on">Мне вставать в…</button>
+      <button id="mSleep">Я ложусь в…</button>
+    </div>
+
+    <div class="timebox">
+      <label id="timeLabel">Во сколько нужно проснуться</label>
+      <input type="time" id="time" value="06:50">
+    </div>
+
+    <div class="fall">⏳ засыпание ~15 минут уже учтено</div>
+
+    <button class="alarm-set" id="armBtn">⏰ Будильник на 06:50</button>
+    <p class="tap-hint" id="tapHint" style="display:none">Нажми на карточку, чтобы поставить будильник</p>
+
+    <div class="results" id="out"></div>
+
+    <p class="hint">Будильник в конце 90-минутного цикла — встаёшь легко; посреди цикла — разбитость. Если времени совсем мало: либо 20 минут дрёмы, либо один полный цикл (1,5 ч). Спать ровно час — худший вариант: будильник выдернет из глубокой фазы.<br><br>⚠️ Будильник звонит, только пока приложение открыто на экране (экран не погаснет автоматически). Продублируй штатным будильником для страховки.</p>
+  </div>
+
+  <!-- ===== ТРЕКЕР ===== -->
+  <div class="page" id="pageTrack">
+    <button class="bigbtn sleep" id="trackBtn">🛏 Я ложусь спать</button>
+    <p class="sleeping-since" id="sleepingSince" style="display:none"></p>
+
+    <div class="qbox" id="qbox">
+      <p>Как спалось?</p>
+      <div class="qs">
+        <button data-q="1">😫</button>
+        <button data-q="2">😐</button>
+        <button data-q="3">😃</button>
+      </div>
+    </div>
+
+    <div class="section-title">Журнал сна</div>
+    <button class="addbtn" id="addBtn">＋ Добавить запись вручную</button>
+
+    <div class="addform" id="addForm">
+      <div class="fr"><label>Дата подъёма</label><input type="date" id="fDate"></div>
+      <div class="fr"><label>Лёг в</label><input type="time" id="fBed" value="00:30"></div>
+      <div class="fr"><label>Встал в</label><input type="time" id="fWake" value="06:50"></div>
+      <div class="fr"><label>Качество</label>
+        <div class="qs" style="display:flex;gap:6px">
+          <button type="button" class="fq" data-q="1" style="font-size:1.3rem;background:var(--night);border:1px solid var(--line);border-radius:10px;padding:6px 10px">😫</button>
+          <button type="button" class="fq" data-q="2" style="font-size:1.3rem;background:var(--night);border:1px solid var(--line);border-radius:10px;padding:6px 10px">😐</button>
+          <button type="button" class="fq" data-q="3" style="font-size:1.3rem;background:var(--night);border:1px solid var(--line);border-radius:10px;padding:6px 10px">😃</button>
+        </div>
+      </div>
+      <div class="fbtns">
+        <button class="cancel" id="fCancel">Отмена</button>
+        <button class="save" id="fSave">Сохранить</button>
+      </div>
+    </div>
+
+    <div id="entries"></div>
+  </div>
+
+  <!-- ===== СТАТИСТИКА ===== -->
+  <div class="page" id="pageStats">
+    <div class="goalbox">
+      <label>Цель сна за ночь</label>
+      <select id="goalSel">
+        <option value="360">6 ч</option>
+        <option value="420">7 ч</option>
+        <option value="450" selected>7,5 ч</option>
+        <option value="480">8 ч</option>
+        <option value="540">9 ч</option>
+      </select>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="chart-card">
+      <h3>Последние 7 ночей</h3>
+      <div class="chart" id="chart"></div>
+    </div>
+    <p class="hint" id="statsHint"></p>
+  </div>
+</div>
+
+<!-- вкладки -->
+<nav class="tabs">
+  <button class="on" data-page="Calc"><span>🌙</span>Калькулятор</button>
+  <button data-page="Track"><span>🛏</span>Трекер</button>
+  <button data-page="Stats"><span>📊</span>Статистика</button>
+</nav>
+
+<div class="alarm-bar" id="bar">
+  <span style="font-size:1.3rem">⏰</span>
+  <span class="info"><b id="barTime">—</b> · осталось <b id="barLeft">—</b><small>не блокируй телефон, экран не погаснет</small></span>
+  <button id="barOff">Выкл</button>
+</div>
+
+<div class="ring" id="ring">
+  <div class="big">⏰</div>
+  <div class="rt" id="ringTime">06:50</div>
+  <div>Пора вставать!</div>
+  <button class="stop" id="stopBtn">Я проснулся</button>
+</div>
+
+<script>
+/* ================= ОБЩЕЕ ================= */
+const FALL=15, CYCLE=90, NAP=20, LS='sleep-tracker-v1';
+const $=id=>document.getElementById(id);
+function pad(n){return String(n).padStart(2,'0')}
+function fmt(min){min=((min%1440)+1440)%1440;return pad(Math.floor(min/60))+':'+pad(min%60)}
+function toMin(v){const[h,m]=v.split(':').map(Number);return h*60+m}
+function durFmt(m){const h=Math.floor(m/60);return h+' ч '+(m%60?pad(m%60)+' м':'')}
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+
+let db;
+try{db=JSON.parse(localStorage.getItem(LS))||{}}catch(e){db={}}
+db.entries=db.entries||[];      // {date:'YYYY-MM-DD' (дата подъёма), bed:'HH:MM', wake:'HH:MM', dur:мин, q:1..3}
+db.goal=db.goal||450;
+db.sleeping=db.sleeping||null;  // ISO-строка начала сна
+function save(){localStorage.setItem(LS,JSON.stringify(db))}
+
+/* ================= ВКЛАДКИ ================= */
+const titles={Calc:['Калькулятор сна','циклы по 90 минут · +15 мин на засыпание'],
+              Track:['Трекер сна','отмечай отбой и подъём — журнал соберётся сам'],
+              Stats:['Статистика','как ты спишь на самом деле']};
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+    ['Calc','Track','Stats'].forEach(p=>$('page'+p).classList.toggle('on',p===b.dataset.page));
+    $('pageTitle').textContent=titles[b.dataset.page][0];
+    $('pageSub').textContent=titles[b.dataset.page][1];
+    if(b.dataset.page==='Stats')renderStats();
+    if(b.dataset.page==='Track')renderTrack();
+  };
+});
+
+/* ================= КАЛЬКУЛЯТОР ================= */
+const input=$('time'),out=$('out'),label=$('timeLabel');
+let mode='wake';
+function quality(c){
+  if(c>=5)return['good','Отлично — полноценный отдых'];
+  if(c===4)return['ok','Нормально — минимум для рабочего дня'];
+  if(c===3)return['ok','Маловато, но проснёшься в лёгкой фазе'];
+  if(c===2)return['bad','Только в крайнем случае'];
+  return['bad','Один цикл — аварийный вариант, но лучше, чем час'];
+}
+function hoursTxt(c){const h=c*CYCLE/60;return(h%1===0?h:h.toFixed(1).replace('.',','))+' ч'}
+function dots(c){let s='';for(let i=0;i<c;i++)s+='<i></i>';return'<span class="cycles">'+s+'</span>'}
+
+function renderCalc(){
+  const v=toMin(input.value||'06:50');let html='';
+  if(mode==='wake'){
+    [6,5,4,3,2,1].forEach(c=>{
+      const bed=v-c*CYCLE-FALL,[q,txt]=quality(c),best=c===5;
+      html+=`<div class="row ${q}${best?' best':''}">
+        <div class="t">${fmt(bed)}</div><div class="meta">лечь · ${hoursTxt(c)} сна</div>${dots(c)}
+        <div class="note">заснёшь в ${fmt(bed+FALL)} — ${txt.toLowerCase()}</div>
+        ${best?'<span class="badge">лучший вариант</span>':''}</div>`;
+    });
+    // power nap — 20 минут, без входа в глубокую фазу
+    const napBed=v-NAP-FALL;
+    html+=`<div class="row good">
+      <div class="t">${fmt(napBed)}</div><div class="meta">лечь · ${NAP} мин дрёмы</div>
+      <span class="cycles" style="color:var(--good)"><i style="width:5px;height:5px"></i></span>
+      <div class="note">power nap: не успеешь уйти в глубокую фазу — встанешь свежим. Дольше 30 мин уже опасно</div>
+      <span class="badge" style="background:var(--good)">короткий отдых</span></div>`;
+  }else{
+    // power nap от текущего времени
+    const napWake=(v+FALL+NAP)%1440;
+    html+=`<div class="row good pick" data-wake="${napWake}">
+      <div class="t">${fmt(napWake)}</div><div class="meta">встать · ${NAP} мин дрёмы</div>
+      <span class="cycles" style="color:var(--good)"><i style="width:5px;height:5px"></i></span>
+      <div class="note">power nap — быстрая перезарядка без глубокой фазы</div>
+      <span class="badge" style="background:var(--good)">короткий отдых</span></div>`;
+    [1,2,3,4,5,6].forEach(c=>{
+      const wake=(v+FALL+c*CYCLE)%1440,[q,txt]=quality(c),best=c===5;
+      const armed=alarm.active&&alarm.target===wake;
+      html+=`<div class="row pick ${q}${best?' best':''}${armed?' armed':''}" data-wake="${wake}">
+        <div class="t">${fmt(wake)}</div><div class="meta">встать · ${hoursTxt(c)} сна</div>${dots(c)}
+        <div class="note">${armed?'⏰ будильник поставлен · ':''}${txt}</div>
+        ${best?'<span class="badge">лучший вариант</span>':''}</div>`;
+    });
+  }
+  out.innerHTML=html;
+  if(mode==='sleep')out.querySelectorAll('.row.pick').forEach(r=>r.onclick=()=>setAlarm(+r.dataset.wake));
+  $('armBtn').textContent='⏰ Будильник на '+fmt(toMin(input.value||'06:50'));
+}
+function setMode(m){
+  mode=m;
+  $('mWake').classList.toggle('on',m==='wake');
+  $('mSleep').classList.toggle('on',m==='sleep');
+  if(m==='wake'){label.textContent='Во сколько нужно проснуться';input.value='06:50';
+    $('armBtn').style.display='block';$('tapHint').style.display='none';
+  }else{label.textContent='Во сколько ложишься';
+    const n=new Date();input.value=pad(n.getHours())+':'+pad(n.getMinutes());
+    $('armBtn').style.display='none';$('tapHint').style.display='block';}
+  renderCalc();
+}
+$('mWake').onclick=()=>setMode('wake');
+$('mSleep').onclick=()=>setMode('sleep');
+input.oninput=renderCalc;
+
+/* ================= БУДИЛЬНИК ================= */
+let alarm={active:false,target:null,fired:false};
+let audioCtx=null,ringTimer=null,tickTimer=null,wakeLock=null,vibTimer=null;
+
+function unlockAudio(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  g.gain.value=0.0001;o.connect(g);g.connect(audioCtx.destination);
+  o.start();o.stop(audioCtx.currentTime+0.05);
+}
+async function keepAwake(){
+  try{if('wakeLock'in navigator)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(alarm.active&&document.visibilityState==='visible')keepAwake();
+});
+function beep(){
+  if(!audioCtx)return;
+  const t=audioCtx.currentTime;
+  [0,.25,.5].forEach((d,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='square';o.frequency.value=i===2?1320:880;
+    g.gain.setValueAtTime(.001,t+d);
+    g.gain.exponentialRampToValueAtTime(.5,t+d+.02);
+    g.gain.exponentialRampToValueAtTime(.001,t+d+.2);
+    o.connect(g);g.connect(audioCtx.destination);o.start(t+d);o.stop(t+d+.22);
+  });
+}
+function setAlarm(target){
+  unlockAudio();
+  alarm={active:true,target,fired:false};
+  $('barTime').textContent=fmt(target);
+  $('bar').classList.add('on');
+  keepAwake();
+  if(tickTimer)clearInterval(tickTimer);
+  tickTimer=setInterval(tick,1000);tick();
+  renderCalc();
+}
+function tick(){
+  if(!alarm.active)return;
+  const n=new Date(),nowMin=n.getHours()*60+n.getMinutes();
+  let left=alarm.target-nowMin;if(left<0)left+=1440;
+  $('barLeft').textContent=Math.floor(left/60)+' ч '+pad(left%60)+' мин';
+  if(nowMin===alarm.target&&!alarm.fired){alarm.fired=true;startRinging()}
+}
+function startRinging(){
+  $('ringTime').textContent=fmt(alarm.target);
+  $('ring').classList.add('on');
+  $('bar').classList.remove('on');
+  beep();ringTimer=setInterval(beep,900);
+  if(navigator.vibrate)vibTimer=setInterval(()=>navigator.vibrate([400,200,400]),1200);
+}
+function stopAll(){
+  alarm={active:false,target:null,fired:false};
+  $('ring').classList.remove('on');$('bar').classList.remove('on');
+  [ringTimer,tickTimer,vibTimer].forEach(t=>t&&clearInterval(t));
+  if(navigator.vibrate)navigator.vibrate(0);
+  if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null}
+  renderCalc();
+}
+$('armBtn').onclick=()=>setAlarm(toMin(input.value||'06:50'));
+$('barOff').onclick=stopAll;
+$('stopBtn').onclick=stopAll;
+
+/* ================= ТРЕКЕР ================= */
+let pendingEntry=null;
+
+function renderTrack(){
+  const btn=$('trackBtn'),since=$('sleepingSince');
+  if(db.sleeping){
+    const d=new Date(db.sleeping);
+    btn.textContent='☀️ Я проснулся';
+    btn.className='bigbtn wakeup';
+    since.style.display='block';
+    since.textContent='Ты спишь с '+pad(d.getHours())+':'+pad(d.getMinutes())+
+      (d.toDateString()!==new Date().toDateString()?' (вчера)':'');
+  }else{
+    btn.textContent='🛏 Я ложусь спать';
+    btn.className='bigbtn sleep';
+    since.style.display='none';
+  }
+  renderEntries();
+}
+
+$('trackBtn').onclick=()=>{
+  if(!db.sleeping){
+    db.sleeping=new Date().toISOString();save();renderTrack();
+  }else{
+    const start=new Date(db.sleeping),end=new Date();
+    let dur=Math.round((end-start)/60000);
+    if(dur<1)dur=1;
+    if(dur>18*60){ // явно забыл нажать — не сохраняем автоматом
+      db.sleeping=null;save();renderTrack();
+      alert('Прошло больше 18 часов — похоже, отметка отбоя устарела. Добавь запись вручную, если нужно.');
+      return;
+    }
+    pendingEntry={
+      date:end.getFullYear()+'-'+pad(end.getMonth()+1)+'-'+pad(end.getDate()),
+      bed:pad(start.getHours())+':'+pad(start.getMinutes()),
+      wake:pad(end.getHours())+':'+pad(end.getMinutes()),
+      dur
+    };
+    db.sleeping=null;save();
+    renderTrack();
+    $('qbox').classList.add('on');
+  }
+};
+
+document.querySelectorAll('#qbox .qs button').forEach(b=>{
+  b.onclick=()=>{
+    if(!pendingEntry)return;
+    pendingEntry.q=+b.dataset.q;
+    db.entries.unshift(pendingEntry);
+    pendingEntry=null;save();
+    $('qbox').classList.remove('on');
+    renderEntries();
+  };
+});
+
+/* ручное добавление */
+let fQ=2;
+$('addBtn').onclick=()=>{
+  $('fDate').value=todayISO();
+  $('addForm').classList.toggle('on');
+};
+document.querySelectorAll('.fq').forEach(b=>{
+  b.onclick=()=>{fQ=+b.dataset.q;
+    document.querySelectorAll('.fq').forEach(x=>x.style.borderColor=x===b?'var(--moon)':'var(--line)');};
+});
+$('fCancel').onclick=()=>$('addForm').classList.remove('on');
+$('fSave').onclick=()=>{
+  const date=$('fDate').value||todayISO(),bed=$('fBed').value,wake=$('fWake').value;
+  if(!bed||!wake)return;
+  let dur=toMin(wake)-toMin(bed);if(dur<=0)dur+=1440;
+  db.entries.unshift({date,bed,wake,dur,q:fQ});
+  db.entries.sort((a,b)=>b.date.localeCompare(a.date));
+  save();
+  $('addForm').classList.remove('on');
+  renderEntries();
+};
+
+function qCls(e){
+  if(e.dur>=420&&e.q>=2)return'good';
+  if(e.dur>=330)return'ok';
+  return'bad';
+}
+const qEmoji={1:'😫',2:'😐',3:'😃'};
+function dateRu(iso){
+  const[y,m,d]=iso.split('-');
+  const mm=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  return +d+' '+mm[+m-1];
+}
+function renderEntries(){
+  const box=$('entries');
+  if(!db.entries.length){
+    box.innerHTML='<div class="empty">Записей пока нет.<br>Нажми «Я ложусь спать» перед сном — утром отметишь подъём, и запись появится сама.</div>';
+    return;
+  }
+  box.innerHTML=db.entries.map((e,i)=>`
+    <div class="entry ${qCls(e)}">
+      <div class="q">${qEmoji[e.q]||'😐'}</div>
+      <div class="times">${e.bed} → ${e.wake}</div>
+      <div class="dur">${durFmt(e.dur)}</div>
+      <button class="del" data-i="${i}">✕</button>
+      <div class="d">${dateRu(e.date)} · ${Math.round(e.dur/CYCLE*10)/10} цикла</div>
+    </div>`).join('');
+  box.querySelectorAll('.del').forEach(b=>{
+    b.onclick=()=>{
+      if(confirm('Удалить запись?')){db.entries.splice(+b.dataset.i,1);save();renderEntries()}
+    };
+  });
+}
+
+/* ================= СТАТИСТИКА ================= */
+$('goalSel').value=db.goal;
+$('goalSel').onchange=()=>{db.goal=+$('goalSel').value;save();renderStats()};
+
+function circMean(times){ // среднее время суток с учётом перехода через полночь
+  if(!times.length)return null;
+  let sx=0,sy=0;
+  times.forEach(t=>{const a=t/1440*2*Math.PI;sx+=Math.cos(a);sy+=Math.sin(a)});
+  let a=Math.atan2(sy,sx);if(a<0)a+=2*Math.PI;
+  return Math.round(a/(2*Math.PI)*1440);
+}
+
+function renderStats(){
+  const es=db.entries.slice(0,30);
+  const grid=$('statsGrid'),chart=$('chart'),hint=$('statsHint');
+  if(!es.length){
+    grid.innerHTML='';chart.innerHTML='';
+    hint.textContent='Статистика появится после первых записей в трекере.';
+    return;
+  }
+  const last7=es.slice(0,7);
+  const avg=Math.round(last7.reduce((s,e)=>s+e.dur,0)/last7.length);
+  const debt=last7.reduce((s,e)=>s+Math.max(0,db.goal-e.dur),0);
+  const avgBed=circMean(last7.map(e=>toMin(e.bed)));
+  const avgWake=circMean(last7.map(e=>toMin(e.wake)));
+  const avgCls=avg>=db.goal-15?'good':avg>=db.goal-90?'ok':'bad';
+
+  grid.innerHTML=`
+    <div class="stat"><div class="v ${avgCls}">${durFmt(avg)}</div><div class="l">средний сон<br>(последние ${last7.length} ноч.)</div></div>
+    <div class="stat"><div class="v ${debt===0?'good':debt<=120?'ok':'bad'}">${debt===0?'нет':durFmt(debt)}</div><div class="l">недосып до цели<br>за эти ночи</div></div>
+    <div class="stat"><div class="v moon">${fmt(avgBed)}</div><div class="l">средний отбой</div></div>
+    <div class="stat"><div class="v moon">${fmt(avgWake)}</div><div class="l">средний подъём</div></div>`;
+
+  const week=es.slice(0,7).slice().reverse();
+  const maxDur=Math.max(db.goal,...week.map(e=>e.dur))*1.1;
+  const goalPct=100-db.goal/maxDur*100;
+  chart.innerHTML='<div class="goal-line" style="top:'+goalPct.toFixed(1)+'%"><small>цель '+durFmt(db.goal)+'</small></div>'+
+    week.map(e=>{
+      const h=Math.max(3,e.dur/maxDur*100);
+      const cls=e.dur>=db.goal-15?'good':e.dur>=db.goal-90?'ok':'bad';
+      return`<div class="bar ${cls}">
+        <span class="bv">${(e.dur/60).toFixed(1).replace('.',',')}</span>
+        <div class="col" style="height:${h.toFixed(1)}%"></div>
+        <span class="bl">${dateRu(e.date)}</span></div>`;
+    }).join('');
+
+  hint.textContent=debt>120
+    ?'Накопился заметный недосып — он не «отсыпается» за одну ночь. Попробуй несколько дней подряд ложиться на один цикл (1,5 ч) раньше.'
+    :avg>=db.goal-15
+      ?'Отличный режим — держишь цель. Стабильное время отбоя важнее, чем редкие «отсыпания».'
+      :'Ты близко к цели. Самый простой рычаг — сдвинуть отбой на 30–60 минут раньше, подъём не трогать.';
+}
+
+/* ================= СТАРТ ================= */
+renderCalc();
+renderTrack();
+</script>
+</body>
+</html>
